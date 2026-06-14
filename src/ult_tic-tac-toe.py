@@ -1,7 +1,4 @@
 import numpy as np
-import textwrap
-
-
 
 class UltTTC():
 
@@ -20,6 +17,7 @@ class UltTTC():
         self._big_board = np.zeros((3,3), dtype=np.int8)
         self._play_box = -1
         self._first_players_turn = True
+        self._winner = ""
         self._finished = False
 
     def get_box(self, board_num):
@@ -36,18 +34,20 @@ class UltTTC():
         else:
             return np.argwhere(self._board == 0)
 
-    def make_move(self, move: np.ndarray, validate: bool):
+    def make_move(self, move: np.ndarray):
         if self._finished:
             print(f"No moves to play. Player {1 if self._first_players_turn else 2} won the game!")
             return self._board, self._big_board, self._play_box
 
-        # If validate is true, check if legal move
-        if validate:
-            legal_moves = self.get_moves()
-            legal = any(np.array_equal(move, legal_move) for legal_move in legal_moves)
-            if not legal:
-                print(f"Invalid Move {move}!\nLegal Moves:\n{legal_moves}")
-                return self._board, self._play_box
+        legal_moves = self.get_moves()
+        if len(self.get_moves) == 0:
+            self._finished = True
+            self.winner = "Draw"
+            return self._board, self._big_board, self._play_box
+        legal = any(np.array_equal(move, legal_move) for legal_move in legal_moves)
+        if not legal:
+            print(f"Invalid Move {move}!\nLegal Moves:\n{legal_moves}")
+            return self._board, self._big_board, self._play_box
 
         # Update the board with the move    
         self._board[move[0]][move[1]] = 1 if self._first_players_turn else -1  
@@ -57,6 +57,7 @@ class UltTTC():
             self._big_board[int(self._play_box / 3)][self._play_box % 3] = 1 if self._first_players_turn else -1
             if self.check_box(self._big_board):
                 self._finished = True
+                self._winner = "Player 1" if self._first_players_turn else "Player 2"
                 return self._board, self._big_board, self._play_box
 
         if self._big_board[move[0] % 3][move[1] % 3] != 0:
