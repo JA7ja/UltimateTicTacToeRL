@@ -1,6 +1,7 @@
 import numpy as np
+import copy
 
-class UltTTC():
+class UltTTT():
 
     #####################
     # Terminology
@@ -27,37 +28,60 @@ class UltTTC():
         return square
 
     def get_moves(self):
+        if self._finished:
+            return []
         if self._play_box >= 0:
             board_x = int(self._play_box / 3) * 3
             board_y = int(self._play_box % 3) * 3
-            return (np.argwhere(self._board[board_y:board_y+3, board_x:board_x+3] == 0) + [board_x, board_y])
+            return (np.argwhere(self._board[board_x:board_x+3, board_y:board_y+3] == 0) + [board_x, board_y])
         else:
             return np.argwhere(self._board == 0)
 
     def make_move(self, move: np.ndarray):
+        # print()
+        # print(self._board)
+        # print(self._big_board)
+        # print(f"Turn: Player {1 if self._first_players_turn else 2}")
+        # print(f"Move: {move}")
+
         if self._finished:
             print(f"No moves to play. Player {1 if self._first_players_turn else 2} won the game!")
+            # print(self._board)
+            # print(self._big_board)
+            # exit(1)
             return self._board, self._big_board, self._play_box
 
         legal_moves = self.get_moves()
-        if len(self.get_moves) == 0:
+        if len(legal_moves) == 0:
             self._finished = True
             self.winner = "Draw"
             return self._board, self._big_board, self._play_box
-        legal = any(np.array_equal(move, legal_move) for legal_move in legal_moves)
-        if not legal:
+        
+        is_legal_move = any(np.array_equal(move, legal_move) for legal_move in legal_moves)
+        if not is_legal_move:
             print(f"Invalid Move {move}!\nLegal Moves:\n{legal_moves}")
             return self._board, self._big_board, self._play_box
 
         # Update the board with the move    
-        self._board[move[0]][move[1]] = 1 if self._first_players_turn else -1  
+        self._board[move[0]][move[1]] = 2 if self._first_players_turn else -2  
 
         # Update the game state
-        if self.check_box(self.get_box(board_num=self._play_box if self._play_box != -1 else int(move[0] / 3) * 3 + int(move[1] / 3))):
-            self._big_board[int(self._play_box / 3)][self._play_box % 3] = 1 if self._first_players_turn else -1
-            if self.check_box(self._big_board):
+        box_status = self.check_box(self.get_box(board_num=self._play_box if self._play_box != -1 else int(move[0] / 3) * 3 + int(move[1] / 3)))
+        if box_status == "win":
+            self._big_board[int(move[0] / 3)][int(move[1] / 3)] = 2 if self._first_players_turn else -2
+            if self.check_box(self._big_board) == "win":
                 self._finished = True
                 self._winner = "Player 1" if self._first_players_turn else "Player 2"
+                return self._board, self._big_board, self._play_box
+            elif self.check_box(self._big_board) == "draw":
+                self._finished = True
+                self._winner = "Draw"
+                return self._board, self._big_board, self._play_box
+        elif box_status == "draw":
+            self._big_board[int(move[0] / 3)][int(move[1] / 3)] = 1
+            if self.check_box(self._big_board) == "draw":
+                self._finished = True
+                self._winner = "Draw"
                 return self._board, self._big_board, self._play_box
 
         if self._big_board[move[0] % 3][move[1] % 3] != 0:
@@ -67,20 +91,31 @@ class UltTTC():
 
         self._first_players_turn = not self._first_players_turn
 
+        # print(self._board)
+        # print(self._big_board)
+
         return self._board, self._big_board, self._play_box
             
+    def make_move_copy(self, move: np.ndarray):
+        new_game = copy.deepcopy(self)
+        new_game.make_move(move)
+        return new_game
+
     def check_box(self, board):
         for i in range(3):
-            if abs(np.sum(board[i])) == 3:
-                return True
-            if abs(np.sum(board[0:3, i])) == 3:
-                return True
-        if abs(board[0][0] + board[1][1] + board[2][2]) == 3:
-            return True
-        if abs(board[0][2] + board[1][1] + board[2][0]) == 3:
-            return True
+            if abs(np.sum(board[i])) == 6:
+                return "win"
+            if abs(np.sum(board[0:3, i])) == 6:
+                return "win"
+        if abs(board[0][0] + board[1][1] + board[2][2]) == 6:
+            return "win"
+        if abs(board[0][2] + board[1][1] + board[2][0]) == 6:
+            return "win"
         
-        return False
+        if len(np.argwhere(board)) == 9:
+            return "draw"
+
+        return "none"
     
     def gen_box_string(self, box_num):
         big_box = self._big_board[int(box_num / 3)][box_num % 3]
@@ -97,9 +132,9 @@ class UltTTC():
 
                     if box[i][j] == 0:
                         box_str += " "
-                    elif box[i][j] == 1:
+                    elif box[i][j] == 2:
                         box_str += "X"
-                    elif box[i][j] == -1:
+                    elif box[i][j] == -2:
                         box_str += "O"
                     
                     box_str += " "
@@ -108,19 +143,25 @@ class UltTTC():
                     box_str += "\n "
                     box_str += "───┼───┼───\n"
 
-        elif big_box == 1:
+        elif big_box == 2:
             box_str ="""  ___   ___ 
   \  \ /  / 
    \  '  /  
    /  .  \  
   /__/ \__\ """
             # box_str = textwrap.dedent(box_str)
-        elif big_box == -1:
+        elif big_box == -2:
             box_str = """    _____   
    / ___ \  
   | |   | | 
   | |___| | 
    \_____/  """
+        elif big_box == 1:
+            box_str = """            
+   _______  
+  |_______| 
+            
+            """
 
         return box_str
 
@@ -166,7 +207,7 @@ class UltTTC():
                 print(f"Player {1 if self._first_players_turn else 2}'s Turn")
                 box_input = int(input("Please select a play box: "))
                 move_input = int(input(f"Move: "))
-            self.make_move(np.array([int(box_input/ 3)*3 + (int(move_input / 3)), (box_input % 3) * 3 + (move_input % 3) ]), False)
+            self.make_move(np.array([int(box_input/ 3)*3 + (int(move_input / 3)), (box_input % 3) * 3 + (move_input % 3) ]))
         self.display_board()
         print()
         print(f"Player {1 if self._first_players_turn else 2} Wins!")
@@ -174,7 +215,7 @@ class UltTTC():
                 
 
 def main():
-    var = UltTTC()
+    var = UltTTT()
     var.play_game()
 
 
