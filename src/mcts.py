@@ -149,6 +149,24 @@ def play_bot(bot_time=20, player_turn="random"):
                 move_input = int(input(f"Move: "))
             game.make_move(np.array([int(box_input/ 3)*3 + (int(move_input / 3)), (box_input % 3) * 3 + (move_input % 3) ]))
 
+    print("""   _____                         ____                 
+  / ____|                       / __ \                
+ | |  __  __ _ _ __ ___   ___  | |  | |_   _____ _ __ 
+ | | |_ |/ _` | '_ ` _ \ / _ \ | |  | \ \ / / _ \ '__|
+ | |__| | (_| | | | | | |  __/ | |__| |\ V /  __/ |   
+  \_____|\__,_|_| |_| |_|\___|  \____/  \_/ \___|_|   
+                                                                                                 
+""")
+    
+    game.display_board()
+    print()
+
+    if game._winner == "Draw":
+        print("Its a tie!")
+    elif (game._winner == "Player 1" and bot_first == True) or (game._winner == "Player 2" and bot_first == False):
+        print("The Bot Wins!")
+    elif (game._winner == "Player 1" and bot_first == False) or (game._winner == "Player 2" and bot_first == True):
+        print("Human Wins!")
 
 def test():
     game = UltTTT()
@@ -165,6 +183,7 @@ def test():
     for child in root.children:
         print(f"Move: {child.action} | Visits: {child.visits:>4}, Value: {child.value:>6.2}")
     print(root.select_move())
+
 
 def main():
     play_bot()
