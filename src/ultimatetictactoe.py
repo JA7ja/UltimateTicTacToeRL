@@ -35,6 +35,8 @@ class UltTTT():
             board_y = int(self._play_box % 3) * 3
             return (np.argwhere(self._board[board_x:board_x+3, board_y:board_y+3] == 0) + [board_x, board_y])
         else:
+            # BUG
+            # If a box has already been claimed by a player, this can still return moves within that box, possibly changing the outcome of the box
             return np.argwhere(self._board == 0)
 
     def make_move(self, move: np.ndarray):
