@@ -121,7 +121,7 @@ def play_bot(bot_time=20, player_turn="random"):
             else:
                 print("Play Box: Any")
             print(f"Bot's Turn")
-            root = MCTS_Node(state=game, exploration_constant=2, sim_policy=random_uniform_rollout_policy)
+            root = MCTS_Node(state=game, first_player=game._first_players_turn, exploration_constant=2, sim_policy=random_uniform_rollout_policy)
             start_time = time.time()
             finished = False
             while(not finished):
@@ -150,22 +150,26 @@ def play_bot(bot_time=20, player_turn="random"):
             game.make_move(np.array([int(box_input/ 3)*3 + (int(move_input / 3)), (box_input % 3) * 3 + (move_input % 3) ]))
 
 
+def test():
+    game = UltTTT()
+    thinking_time = 20
+    game.make_move(np.array([4,4]))
+    root = MCTS_Node(state=game, first_player=False, exploration_constant=2, sim_policy=random_uniform_rollout_policy)
+    start_time = time.time()
+    finished = False
+    while(not finished):
+        node = root.traverse()
+        node.backpropogate(node, node.simulate())
+        finished = (time.time() - start_time) > thinking_time
+    root.children.sort(key=lambda c: c.visits, reverse=True)
+    for child in root.children:
+        print(f"Move: {child.action} | Visits: {child.visits:>4}, Value: {child.value:>6.2}")
+    print(root.select_move())
+
 def main():
     play_bot()
-    # game = UltTTT()
-    # thinking_time = 20
-    # root = MCTS_Node(state=game, exploration_constant=2, sim_policy=random_uniform_rollout_policy)
-    # start_time = time.time()
-    # finished = False
-    # while(not finished):
-    #     node = root.traverse()
-    #     node.backpropogate(node, node.simulate())
-    #     finished = (time.time() - start_time) > thinking_time
-    # root.children.sort(key=lambda c: c.visits, reverse=True)
-    # for child in root.children:
-    #     print(f"Move: {child.action} | Visits: {child.visits:>4}, Value: {child.value:>6.2}")
-    # print(root.select_move())
 
 
 if __name__ == "__main__":
     main()
+    # test()
