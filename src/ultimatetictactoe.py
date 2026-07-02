@@ -24,8 +24,7 @@ class UltTTT():
     def get_box(self, board_num):
         board_x = int(board_num / 3) * 3
         board_y = (board_num % 3) * 3
-        square = np.array(self._board[board_x:board_x+3, board_y:board_y+3])
-        return square
+        return self._board[board_x:board_x+3, board_y:board_y+3]
 
     def get_moves(self):
         if self._finished:
@@ -46,6 +45,12 @@ class UltTTT():
                             moves.append(move)
             return np.array(moves)
 
+
+    def get_moves_bot(self):
+        if np.array_equal(self._board, np.zeros((9,9), dtype=np.int8)):
+            return np.array([[0,0], [0,1], [0,2], [1,1], [1,2], [2,2], [0,3], [0,4], [1,3], [1,4], [2,3], [2,4], [3,3], [3,4], [4,4]])
+        else:
+            return self.get_moves()
 
     def make_move(self, move: np.ndarray):
         # print()
@@ -108,19 +113,51 @@ class UltTTT():
             
     def make_move_copy(self, move: np.ndarray):
         new_game = copy.deepcopy(self)
-        new_game.make_move(move)
+        new_game.make_move_sim(move)
         return new_game
 
+    def make_move_sim(self, move: np.ndarray):
+        # Update the board with the move    
+        self._board[move[0]][move[1]] = 2 if self._first_players_turn else -2  
+
+        # Update the game state
+        box_status = self.check_box(self.get_box(board_num=self._play_box if self._play_box != -1 else int(move[0] / 3) * 3 + int(move[1] / 3)))
+        if box_status == "win":
+            self._big_board[int(move[0] / 3)][int(move[1] / 3)] = 2 if self._first_players_turn else -2
+            if self.check_box(self._big_board) == "win":
+                self._finished = True
+                self._winner = "Player 1" if self._first_players_turn else "Player 2"
+                return
+            elif self.check_box(self._big_board) == "draw":
+                self._finished = True
+                self._winner = "Draw"
+                return
+        elif box_status == "draw":
+            self._big_board[int(move[0] / 3)][int(move[1] / 3)] = 1
+            if self.check_box(self._big_board) == "draw":
+                self._finished = True
+                self._winner = "Draw"
+                return
+
+        if self._big_board[move[0] % 3][move[1] % 3] != 0:
+            self._play_box = -1
+        else:
+            self._play_box = ((move[0] % 3) * 3) + (move[1] % 3)
+
+        self._first_players_turn = not self._first_players_turn
+
+        return
+
     def check_box(self, board):
+        if abs(board[0][0] + board[1][1] + board[2][2]) == 6:
+            return "win"
+        if abs(board[0][2] + board[1][1] + board[2][0]) == 6:
+            return "win"
         for i in range(3):
             if abs(np.sum(board[i])) == 6:
                 return "win"
             if abs(np.sum(board[0:3, i])) == 6:
                 return "win"
-        if abs(board[0][0] + board[1][1] + board[2][2]) == 6:
-            return "win"
-        if abs(board[0][2] + board[1][1] + board[2][0]) == 6:
-            return "win"
         
         if len(np.argwhere(board)) == 9:
             return "draw"
@@ -225,6 +262,12 @@ class UltTTT():
 
                 
 
+
+def test():
+    var = UltTTT()
+    var.make_move(np.array([4,4]))
+    print(var.get_moves_bot())
+
 def main():
     var = UltTTT()
     var.play_game()
@@ -232,4 +275,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    test()

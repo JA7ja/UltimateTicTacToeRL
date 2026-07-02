@@ -19,7 +19,7 @@ class MCTS_Node():
         self.children = []
         self.visits = 0
         self.value = 0.0
-        self.unexplored_moves = np.random.default_rng().permutation(self.state.get_moves())
+        self.unexplored_moves = np.random.default_rng().permutation(self.state.get_moves_bot())
 
     def is_fully_explored(self):
         return len(self.unexplored_moves) == 0
@@ -56,7 +56,7 @@ class MCTS_Node():
                 move = self.sim_policy(sim_game)
                 if sim_game._finished:
                     print("WTF")
-                sim_game.make_move(move)
+                sim_game.make_move_sim(move)
             except Exception as e:
                 print(sim_game._board)
                 print(sim_game._big_board)
@@ -95,17 +95,17 @@ class MCTS_Node():
         
     def select_move(self):
         if len(self.children):
-            return max(self.children, key=lambda c: c.visits).action
+            move = max(self.children, key=lambda c: c.visits) 
+            return move.action, move.value
         else:
-            return self.sim_policy(self.state)
+            return self.sim_policy(self.state), self.value
 
 def random_uniform_rollout_policy(state:UltTTT) -> np.ndarray:
-    return random.choice(state.get_moves())
+    return random.choice(state.get_moves_bot())
 
 
 def play_bot(bot_time=20, player_turn="random"):
     game = UltTTT()
-    thinking_time = bot_time
     bot_first = True
     if player_turn == "random":
         bot_first = random.random() > 0.5
@@ -121,18 +121,18 @@ def play_bot(bot_time=20, player_turn="random"):
             else:
                 print("Play Box: Any")
             print(f"Bot's Turn")
-            root = MCTS_Node(state=game, first_player=game._first_players_turn, exploration_constant=2, sim_policy=random_uniform_rollout_policy)
+            root = MCTS_Node(state=game, first_player=game._first_players_turn, exploration_constant=0.66, sim_policy=random_uniform_rollout_policy)
             start_time = time.time()
             finished = False
             while(not finished):
                 node = root.traverse()
                 node.backpropogate(node, node.simulate())
-                finished = (time.time() - start_time) > thinking_time
+                finished = (time.time() - start_time) > bot_time
             # root.children.sort(key=lambda c: c.visits, reverse=True)
             # for child in root.children:
             #     print(f"Move: {child.action} | Visits: {child.visits:>4}, Value: {child.value:>6.2}")
-            bot_move = root.select_move()
-            print(f"Move: {root.select_move()}")
+            bot_move, _ = root.select_move()
+            print(f"Move: {bot_move}")
             game.make_move(bot_move)
         else:
             game.display_board()
@@ -168,11 +168,67 @@ def play_bot(bot_time=20, player_turn="random"):
     elif (game._winner == "Player 1" and bot_first == False) or (game._winner == "Player 2" and bot_first == True):
         print("Human Wins!")
 
+def self_play(bot_time=40):
+    game = UltTTT()
+    thinking_time = bot_time
+    while not game._finished:
+        game.display_board()
+        print()
+        if game._play_box >= 0:
+            print(f"Play Box: {game._play_box}")
+        else:
+            print("Play Box: Any")
+        print(f"Bot 1's Turn") if game._first_players_turn else print(f"Bot 2's Turn")
+        root = MCTS_Node(state=game, first_player=game._first_players_turn, exploration_constant=0.66, sim_policy=random_uniform_rollout_policy)
+        start_time = time.time()
+        nps_time = start_time
+        nps_visits = 0
+        nps_vals = []
+        finished = False
+        print("NPS: 0", end="", flush=True)
+        while(not finished):
+            node = root.traverse()
+            node.backpropogate(node, node.simulate())
+            curr_time = time.time()
+            if curr_time - nps_time > 1:
+                nps_vals.append(root.visits - nps_visits)
+                print(f"\rNPS: {nps_vals[-1]}\033[K", end="", flush=True)
+                nps_time = curr_time
+                nps_visits = root.visits
+            finished = (time.time() - start_time) > thinking_time
+        # root.children.sort(key=lambda c: c.visits, reverse=True)
+        # for child in root.children:
+        #     print(f"Move: {child.action} | Visits: {child.visits:>4}, Value: {child.value:>6.2}")
+        bot_move, pos_value = root.select_move()
+        print(f"\rNodes Visited: {root.visits} | Average NPS: ~{round(sum(nps_vals)/len(nps_vals))}")
+        print(f"Move: {bot_move} | Position Value: {pos_value:>5.3}")
+        game.make_move(bot_move)
+
+    print("""   _____                         ____                 
+  / ____|                       / __ \                
+ | |  __  __ _ _ __ ___   ___  | |  | |_   _____ _ __ 
+ | | |_ |/ _` | '_ ` _ \ / _ \ | |  | \ \ / / _ \ '__|
+ | |__| | (_| | | | | | |  __/ | |__| |\ V /  __/ |   
+  \_____|\__,_|_| |_| |_|\___|  \____/  \_/ \___|_|   
+                                                                                                 
+""")
+    
+    game.display_board()
+    print()
+
+    if game._winner == "Draw":
+        print("Its a tie!")
+    elif game._winner == "Player 1":
+        print("Bot 1 Wins")
+    elif game._winner == "Player 2":
+        print("Bot 2 Wins")
+
 def test():
     game = UltTTT()
-    thinking_time = 20
+    thinking_time = 300
     game.make_move(np.array([4,4]))
-    root = MCTS_Node(state=game, first_player=False, exploration_constant=2, sim_policy=random_uniform_rollout_policy)
+    game.make_move(np.array([3,3]))
+    root = MCTS_Node(state=game, first_player=True, exploration_constant=0.66, sim_policy=random_uniform_rollout_policy)
     start_time = time.time()
     finished = False
     while(not finished):
@@ -182,13 +238,14 @@ def test():
     root.children.sort(key=lambda c: c.visits, reverse=True)
     for child in root.children:
         print(f"Move: {child.action} | Visits: {child.visits:>4}, Value: {child.value:>6.2}")
-    print(root.select_move())
+    print(root.select_move()[0])
 
 
 def main():
-    play_bot()
+    # play_bot()
+    self_play()
 
 
 if __name__ == "__main__":
     main()
-    # test()
+    # test()    
